@@ -1,7 +1,7 @@
 // Offline support: keeps the app shell, Firebase SDK and fonts available without a connection.
 // Your schedule itself is cached by Firestore (IndexedDB), never here.
 // Bump VERSION whenever you change files so devices pick up the new ones.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL = `schedule-shell-${VERSION}`;
 const RUNTIME = `schedule-runtime-${VERSION}`;
 
