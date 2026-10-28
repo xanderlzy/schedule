@@ -1,0 +1,8 @@
+# Personal data: never commit (the repo is public on GitHub Pages)
+data/
+References/
+schedule-backup-*.json
+docs/superpowers/
+
+.DS_Store
+node_modules/

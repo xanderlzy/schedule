@@ -1,0 +1,98 @@
+{
+  "semester": {
+    "name": "April Semester 2027",
+    "start": "2027-04-19",
+    "weeks": 18,
+    "breakWeeks": [9],
+    "examWeeks": [17, 18],
+    "labels": {
+      "9": "Term break",
+      "17": "Study & exam week",
+      "18": "Study & exam week"
+    }
+  },
+  "modules": {
+    "ABC101": {
+      "code": "ABC101",
+      "name": "Example Module",
+      "shade": 1,
+      "lecturer": "Jane Tan",
+      "contact": "jane@example.edu",
+      "assessments": [
+        { "name": "Essay", "weight": 40 },
+        { "name": "Final Test", "weight": 60 }
+      ]
+    },
+    "XYZ202": {
+      "code": "XYZ202",
+      "name": "Another Module",
+      "shade": 2,
+      "lecturer": "",
+      "contact": "",
+      "assessments": []
+    }
+  },
+  "classes": {
+    "abc101-t01": {
+      "id": "abc101-t01",
+      "moduleCode": "ABC101",
+      "section": "T01",
+      "type": "Tutorial",
+      "day": 1,
+      "start": "09:00",
+      "end": "11:00",
+      "venue": "BLK 1 #01-01",
+      "staff": "Jane Tan",
+      "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16]
+    },
+    "xyz202-l01": {
+      "id": "xyz202-l01",
+      "moduleCode": "XYZ202",
+      "section": "L01",
+      "type": "Lecture",
+      "day": 3,
+      "start": "14:00",
+      "end": "16:00",
+      "venue": "Lecture Theatre 2",
+      "staff": "",
+      "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16]
+    }
+  },
+  "exceptions": {
+    "abc101-t01@2027-05-03": { "cancelled": true, "reason": "Public holiday" }
+  },
+  "agendas": {
+    "ABC101_w1": {
+      "moduleCode": "ABC101",
+      "week": 1,
+      "topic": "Introduction",
+      "details": ["Course overview", "Read Chapter 1"]
+    },
+    "ABC101_w2": {
+      "moduleCode": "ABC101",
+      "week": 2,
+      "topic": "Research methods",
+      "screening": "Optional film or video for the week",
+      "details": ["Read Chapter 2"],
+      "venue": "Online"
+    }
+  },
+  "tasks": {
+    "abc101-essay": {
+      "moduleCode": "ABC101",
+      "title": "Essay",
+      "due": "2027-05-12T23:59",
+      "dueKind": "exact",
+      "weight": 40,
+      "done": false
+    },
+    "xyz202-a1": {
+      "moduleCode": "XYZ202",
+      "title": "Assignment 1",
+      "due": "2027-05-19T14:00",
+      "dueKind": "week",
+      "weight": null,
+      "done": false
+    }
+  }
+}
