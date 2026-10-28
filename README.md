@@ -8,6 +8,8 @@ A simple, monotone school timetable app with three views:
 
 **Live app:** <https://xanderlzy.github.io/schedule/>
 
+The timetable opens with an **Up next** strip: the class you're in (or the next one, with a countdown) and the deadlines due in the next 7 days, overdue ones first. Every deadline shows how long is left ("in 3 days", "Overdue · yesterday").
+
 You can tick off deadlines, keep notes on each week's class, cancel or move a class, and add your own events. Everything syncs between your phone and laptop. It's plain HTML/CSS/JavaScript with no build step, hosted free on **GitHub Pages** and synced through **Firebase**.
 
 ---
@@ -154,6 +156,16 @@ Smaller changes during the semester (a cancelled class, a room change, a new dea
 | Edit or delete an event / deadline | Tap it |
 | Switch semester, import, back up | **⋯** menu (top right) |
 | Light / dark mode | Sun or moon button. It follows your device until you choose |
+| Search | Magnifier button, or press **/** or **⌘K** (Ctrl+K on Windows). Finds class topics, readings, screenings, your notes, deadlines and events. Every word you type must match |
+| See all upcoming deadlines | **+N more** under *Due soon*, or **List → Deadlines** |
+
+### Install it as an app
+
+Schedule is a Progressive Web App: install it and it opens in its own window, with an icon and no browser bar, and it still opens without a connection (changes sync when you're back online).
+
+- **iPhone / iPad:** open the live app in **Safari** → Share → **Add to Home Screen**. The home-screen app keeps its own login, so sign in once more inside it.
+- **Android:** Chrome → ⋮ → **Install app** (or *Add to Home screen*).
+- **Mac / Windows:** Chrome or Edge → the install icon at the right of the address bar. In Safari on a Mac: File → **Add to Dock**.
 
 ## 7. Backups
 
@@ -169,6 +181,7 @@ To restore, use **⋯ → Import semester…** and pick the backup file. Semeste
 | "Missing or insufficient permissions" in the browser console | Publish the rules from `firestore.rules` (step 2b.4) |
 | App says "Local preview" after deploying | `js/firebase-config.js` still has an empty `apiKey`, or the change wasn't pushed |
 | Phone doesn't show the latest change | Pull down to refresh. Changes sync live while the app is open |
+| Installed app still shows an old version after an update | Close it fully and reopen it. Developers: bump `VERSION` in `sw.js` with each release |
 | Imported the wrong file | **⋯ → Semesters… → Delete** it, then import the right one |
 
 ## 9. For developers
@@ -186,8 +199,11 @@ js/store.js        data layer: Firestore or localStorage; semesters, import/expo
 js/ui.js           shell: theme, ⋯ menu, Semesters sheet, sign-in gate, sheets, toasts
 js/views.js        shared rows and day content
 js/editor.js       class / event / deadline sheets
+js/search.js       search sheet (loaded on demand)
 js/timetable.js · js/calendar.js · js/list.js   page controllers
 firestore.rules    per-user access rules
+sw.js              service worker: offline app shell (bump VERSION when files change)
+manifest.webmanifest, icons/   install-as-app metadata and icons
 example/           sample semester file (fake data)
 ```
 

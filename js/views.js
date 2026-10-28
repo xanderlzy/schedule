@@ -1,7 +1,7 @@
 // Reusable rendering pieces shared by all three pages.
 import * as store from './store.js';
 import { h, icon, fmtTime, fmtRange, fmtDate } from './dom.js';
-import { dayItems, weekNumber, parseISO, weekKind } from './model.js';
+import { dayItems, weekNumber, parseISO, weekKind, dueDate, countdown } from './model.js';
 import { save } from './ui.js';
 
 export const shadeOf = (data, code) => data.modules[code]?.shade ?? 0;
@@ -25,9 +25,15 @@ export function taskCheck(task) {
   return input;
 }
 
-export function dueText(task) {
-  const t = task.due.slice(11, 16);
-  return task.dueKind === 'week' ? 'Due this week' : `Due ${fmtTime(t)}`;
+export const isOverdue = (task, now = new Date()) => !task.done && dueDate(task) < now;
+
+/** "Due 11:59pm · in 3 days", "Overdue · yesterday"; week-only deadlines are approximate. */
+export function dueText(task, now = new Date()) {
+  const when = task.dueKind === 'week' ? 'Due this week' : `Due ${fmtTime(task.due.slice(11, 16))}`;
+  if (task.done) return when;
+  const left = countdown(dueDate(task), now);
+  if (isOverdue(task, now)) return `Overdue · ${left}`;
+  return `${when} · ${task.dueKind === 'week' ? '~' : ''}${left}`;
 }
 
 /** Agenda details for a class occurrence. */
@@ -43,7 +49,7 @@ export function agendaBlock(occ) {
 /** One row in a day listing. `onOpen` opens the full editor for that item. */
 export function itemRow(data, item, { expandable = true, onOpen, expanded } = {}) {
   if (item.kind === 'task') {
-    return h('li', { class: `row row-task${item.done ? ' done' : ''}`, dataset: { shade: shadeOf(data, item.moduleCode) } },
+    return h('li', { class: `row row-task${item.done ? ' done' : ''}${isOverdue(item) ? ' overdue' : ''}`, dataset: { shade: shadeOf(data, item.moduleCode) } },
       taskCheck(item),
       h('button', { class: 'row-main', onclick: () => onOpen?.(item) },
         h('span', { class: 'row-title' }, item.title),

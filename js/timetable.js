@@ -3,9 +3,9 @@ import { boot } from './ui.js';
 import { h, icon, fmtTime, fmtDate, enter } from './dom.js';
 import {
   iso, parseISO, addDays, weekStart, weekKind, nearestWeek, weekday, toMin, todayISO,
-  classesOn, tasksOn, eventsOn, layoutLanes,
+  classesOn, tasksOn, eventsOn, layoutLanes, nextUp, pendingTasks, countdown,
 } from './model.js';
-import { shadeOf, weekLabel } from './views.js';
+import { shadeOf, weekLabel, taskCheck, isOverdue, moduleName } from './views.js';
 import { openItem, openEventForm, openAddMenu } from './editor.js';
 
 const DAY_START = 8 * 60;
@@ -80,6 +80,65 @@ function block(item) {
       item.cancelled ? 'Cancelled' : [`${fmtTime(item.start)}–${fmtTime(item.end)}`, item.agenda?.online ? 'Online' : item.venue].join(' · ')));
 }
 
+
+/* ---------- Up next strip ---------- */
+
+const MAX_DUE = 4;
+
+function whenText(item, now) {
+  const left = countdown(item.startsAt, now);
+  if (item.date === iso(now)) return `${left} · ${fmtTime(item.start)}`;
+  const day = left === 'tomorrow' ? '' : `${fmtDate(item.date, { weekday: 'short', day: 'numeric', month: 'short' })}, `;
+  return `${left} · ${day}${fmtTime(item.start)}`;
+}
+
+function itemTitle(item) {
+  return item.kind === 'event'
+    ? item.title
+    : `${item.moduleCode} · ${item.agenda?.topic || moduleName(data, item.moduleCode)}`;
+}
+
+function upNext() {
+  const now = new Date();
+  const { current, next } = nextUp(data, now);
+  const { overdue, soon } = pendingTasks(data, now, 7);
+
+  const slot = (label, item, sub) => h('button', {
+    class: `un-item${item.kind === 'event' ? ' un-event' : ''}`,
+    dataset: item.kind === 'class' ? { shade: shadeOf(data, item.moduleCode) } : null,
+    onclick: () => openItem(item),
+  },
+    h('span', { class: 'eyebrow' }, label),
+    h('span', { class: 'un-title' }, itemTitle(item)),
+    h('span', { class: 'un-sub' }, sub));
+
+  const classesCard = h('div', { class: 'un-card' },
+    current && slot(`Now · until ${fmtTime(current.end)}`, current,
+      [current.agenda?.online ? 'Online' : current.venue || current.location].filter(Boolean).join(' · ') || ' '),
+    next && slot(`Next · ${whenText(next, now)}`, next,
+      [`${fmtTime(next.start)}–${fmtTime(next.end)}`, next.agenda?.online ? 'Online' : next.venue || next.location].filter(Boolean).join(' · ')),
+    !current && !next && h('div', { class: 'un-item un-empty' },
+      h('span', { class: 'eyebrow' }, 'Up next'),
+      h('span', { class: 'un-sub' }, 'Nothing in the next two weeks.')));
+
+  const tasks = [...overdue, ...soon];
+  const shown = tasks.slice(0, MAX_DUE);
+  const dueCard = h('div', { class: 'un-card un-due' },
+    h('p', { class: 'eyebrow' },
+      'Due soon',
+      overdue.length > 0 && h('span', { class: 'pill pill-ink' }, `${overdue.length} overdue`)),
+    shown.length
+      ? h('ul', { class: 'un-tasks' }, shown.map((t) => h('li', { class: `un-task${isOverdue(t, now) ? ' overdue' : ''}` },
+        taskCheck(t),
+        h('button', { class: 'un-task-main', onclick: () => openItem(t) },
+          h('span', { class: 'un-task-title' }, t.title),
+          h('span', { class: 'un-sub' }, [t.moduleCode, `${isOverdue(t, now) ? 'Overdue, ' : ''}${countdown(t.dueAt, now)}`].filter(Boolean).join(' · '))))))
+      : h('p', { class: 'un-sub' }, 'Nothing due in the next 7 days.'),
+    tasks.length > MAX_DUE && h('a', { class: 'un-more', href: 'list.html?show=task' }, `+${tasks.length - MAX_DUE} more`));
+
+  return h('section', { class: 'upnext', 'aria-label': 'Up next' }, classesCard, dueCard);
+}
+
 function render() {
   if (!data) return;
   const dir = lastWeek == null || lastWeek === week ? 0 : week > lastWeek ? 1 : -1;
@@ -134,7 +193,7 @@ function render() {
           h('button', { class: 'chip chip-event', onclick: () => openItem(e) }, e.title)),
         ...tasksOn(data, d).map((t) =>
           h('button', {
-            class: `chip chip-task${t.done ? ' done' : ''}`,
+            class: `chip chip-task${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`,
             dataset: { shade: shadeOf(data, t.moduleCode) },
             onclick: () => openItem(t),
             title: `${t.moduleCode} · ${t.title}`,
@@ -194,7 +253,7 @@ function render() {
 
   const fab = h('button', { class: 'fab', 'aria-label': 'Add', onclick: () => openAddMenu(activeDay) }, icon('plus', 22));
 
-  main.replaceChildren(h('section', { class: 'tt' }, toolbar, tabs, body), fab);
+  main.replaceChildren(h('section', { class: 'tt' }, toolbar, upNext(), tabs, body), fab);
   if (dir) enter(body, dir);
   scrollToNow(body);
 }
@@ -231,6 +290,8 @@ function scrollToNow(body) {
 }
 
 setInterval(() => {
+  const strip = main.querySelector('.upnext');
+  if (strip && data && !document.querySelector('.sheet-layer')) strip.replaceWith(upNext());
   const line = main.querySelector('.now-line');
   if (!line) return;
   const n = new Date();

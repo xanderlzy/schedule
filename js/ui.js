@@ -302,6 +302,16 @@ export function emptyState() {
 
 export const loadingState = () => h('div', { class: 'empty' }, h('div', { class: 'spinner', 'aria-label': 'Loading' }));
 
+/* ---------- search + offline ---------- */
+
+// search.js imports editor.js, which imports this file, so load it lazily
+const openSearch = () => import('./search.js').then((m) => m.openSearch());
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').catch((err) => console.warn('Offline support unavailable:', err));
+}
+
 /* ---------- boot ---------- */
 
 /**
@@ -314,6 +324,15 @@ export function boot(render) {
   document.getElementById('theme-btn')?.addEventListener('click', toggleTheme);
   const menuBtn = document.getElementById('menu-btn');
   menuBtn?.addEventListener('click', () => openMenu(menuBtn));
+  document.getElementById('search-btn')?.addEventListener('click', openSearch);
+  document.addEventListener('keydown', (e) => {
+    const typing = e.target.closest?.('input, textarea, select, [contenteditable]');
+    if ((e.key === '/' && !typing) || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) {
+      e.preventDefault();
+      openSearch();
+    }
+  });
+  registerServiceWorker();
 
   const main = document.getElementById('app');
   let shown = null;

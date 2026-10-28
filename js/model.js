@@ -158,3 +158,110 @@ export function layoutLanes(items) {
   flush();
   return timed;
 }
+
+/* ---------- now / next / countdowns ---------- */
+
+/** Local Date for an ISO date and HH:MM. */
+export function at(dateISO, hhmm) {
+  const d = parseISO(dateISO);
+  const [h, m] = (hhmm || '00:00').split(':').map(Number);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+export const dueDate = (task) => at(task.due.slice(0, 10), task.due.slice(11, 16));
+
+/** The class/event happening now (if any) and the next one to start, looking ahead `days`. */
+export function nextUp(data, now = new Date(), days = 14) {
+  let current = null;
+  let next = null;
+  for (let i = 0; i <= days && !next; i++) {
+    const d = iso(addDays(now, i));
+    const items = [
+      ...classesOn(data, d).filter((c) => !c.cancelled),
+      ...eventsOn(data, d).filter((e) => e.start && e.end),
+    ].sort(byStart);
+    for (const it of items) {
+      const startsAt = at(d, it.start);
+      const endsAt = at(d, it.end);
+      if (startsAt <= now && now < endsAt) current ??= { ...it, date: d, startsAt, endsAt };
+      else if (startsAt > now) { next = { ...it, date: d, startsAt, endsAt }; break; }
+    }
+  }
+  return { current, next };
+}
+
+/** Pending deadlines: everything overdue, plus those due within `days`. */
+export function pendingTasks(data, now = new Date(), days = 7) {
+  const horizon = addDays(now, days + 1);
+  const out = { overdue: [], soon: [] };
+  for (const [id, t] of Object.entries(data.tasks)) {
+    if (t.done) continue;
+    const due = dueDate(t);
+    if (due < now) out.overdue.push({ ...t, id, kind: 'task', dueAt: due });
+    else if (due < horizon) out.soon.push({ ...t, id, kind: 'task', dueAt: due });
+  }
+  const byDue = (a, b) => a.dueAt - b.dueAt;
+  out.overdue.sort(byDue);
+  out.soon.sort(byDue);
+  return out;
+}
+
+/** Human countdown: "in 25 min", "in 3 h", "tomorrow", "in 4 days", "2 days ago". */
+export function countdown(target, now = new Date()) {
+  const ms = target - now;
+  const dayDiff = Math.round((parseISO(iso(target)) - parseISO(iso(now))) / 86400000);
+  const mins = Math.abs(ms) / 60000;
+  const sameDay = (past) => (mins < 60 ? `${Math.max(1, Math.round(mins))} min` : `${Math.round(mins / 60)} h`) + (past ? ' ago' : '');
+  if (ms < 0) {
+    if (dayDiff === 0) return sameDay(true);
+    return dayDiff === -1 ? 'yesterday' : `${-dayDiff} days ago`;
+  }
+  if (dayDiff === 0) return `in ${sameDay(false)}`;
+  return dayDiff === 1 ? 'tomorrow' : `in ${dayDiff} days`;
+}
+
+/* ---------- search ---------- */
+
+/** Lowercase and strip accents so "melanie" finds "Mélanie". */
+export const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/**
+ * Search agendas (topics, readings, screenings, notes), deadlines and events.
+ * Every word in the query must appear somewhere in the item.
+ */
+export function search(data, query) {
+  const terms = fold(query).split(/\s+/).filter(Boolean);
+  const result = { agendas: [], tasks: [], events: [] };
+  if (!terms.length) return result;
+  const matches = (...fields) => {
+    const hay = fold(fields.flat().filter(Boolean).join('\n'));
+    return terms.every((t) => hay.includes(t));
+  };
+  for (const [id, a] of Object.entries(data.agendas)) {
+    const mod = data.modules[a.moduleCode];
+    if (matches(a.topic, a.details, a.screening, a.note, a.venue, a.moduleCode, mod?.name)) {
+      result.agendas.push({ ...a, id, kind: 'agenda' });
+    }
+  }
+  for (const [id, t] of Object.entries(data.tasks)) {
+    if (matches(t.title, t.moduleCode, data.modules[t.moduleCode]?.name)) result.tasks.push({ ...t, id, kind: 'task' });
+  }
+  for (const [id, e] of Object.entries(data.events)) {
+    if (matches(e.title, e.location, e.notes)) result.events.push({ ...e, id, kind: 'event' });
+  }
+  result.agendas.sort((a, b) => a.week - b.week || a.moduleCode.localeCompare(b.moduleCode));
+  result.tasks.sort((a, b) => a.due.localeCompare(b.due));
+  result.events.sort((a, b) => a.date.localeCompare(b.date) || (a.start || '').localeCompare(b.start || ''));
+  return result;
+}
+
+/** The class occurrence a module's agenda for `week` belongs to (first class that week), or null. */
+export function occurrenceForAgenda(data, moduleCode, week) {
+  const cls = Object.values(data.classes)
+    .filter((c) => c.moduleCode === moduleCode && c.weeks.includes(week))
+    .sort((a, b) => a.day - b.day || a.start.localeCompare(b.start))[0];
+  if (!cls) return null;
+  const date = iso(addDays(weekStart(data.semester, week), cls.day - 1));
+  return classesOn(data, date).find((o) => o.classId === cls.id) || null;
+}

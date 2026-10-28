@@ -9,7 +9,8 @@ const main = document.getElementById('app');
 const FILTERS = [['all', 'All'], ['class', 'Classes'], ['task', 'Deadlines'], ['event', 'Events']];
 
 let data = null;
-let filter = 'all';
+const requested = new URLSearchParams(location.search).get('show'); // e.g. list.html?show=task
+let filter = FILTERS.some(([k]) => k === requested) ? requested : 'all';
 let moduleFilter = '';
 let showDone = false;
 let rendered = false;
