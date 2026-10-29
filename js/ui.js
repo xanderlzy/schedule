@@ -340,7 +340,8 @@ export function boot(render) {
   let lastError = null;
   store.subscribe((data, st) => {
     renderGate(st);
-    if (st.error && st.error !== lastError) toast(`Sync problem — changes may not appear. ${st.error}`);
+    if (st.error && st.error !== lastError) toast(`Sync problem — reconnecting… ${st.error}`);
+    else if (!st.error && lastError) toast('Back in sync');
     lastError = st.error;
     if (data.semester) {
       shown = 'data';

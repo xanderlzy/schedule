@@ -26,7 +26,7 @@ if (mode === 'cloud' && !all.uid) all = blankAll();
 let view = derive();
 let phase = 'loading'; // 'loading' | 'signed-out' | 'ready'
 let user = null;
-let syncError = null; // last Firestore listener error, shown to the user
+let syncError = null; // a current Firestore listener error, shown to the user
 let fb = null;
 const subs = new Set();
 
@@ -177,11 +177,45 @@ const toMap = (snap) => {
   return m;
 };
 
-function onError(err) {
-  console.error(err);
-  syncError = err.code ? `${err.code}: ${err.message}` : String(err.message || err);
-  phase = 'ready';
-  emit();
+const failing = new Map(); // listener path -> error message
+const RETRY_MS = [2000, 5000, 15000, 30000, 60000];
+
+function setFailing(path, msg) {
+  if (msg) failing.set(path, msg);
+  else failing.delete(path);
+  syncError = failing.values().next().value ?? null;
+}
+
+/**
+ * onSnapshot that heals itself: Firestore ends a listener for good after an error,
+ * so resubscribe with backoff until it works again. Returns an unsubscribe function.
+ */
+function watch(ref, onNext) {
+  let unsub = null;
+  let timer = null;
+  let tries = 0;
+  let stopped = false;
+  const subscribe = () => {
+    unsub = fb.fs.onSnapshot(ref, (snap) => {
+      tries = 0;
+      if (failing.has(ref.path)) setFailing(ref.path, null);
+      onNext(snap);
+    }, (err) => {
+      console.error(`Listener for ${ref.path} failed; retrying.`, err);
+      setFailing(ref.path, err.code ? `${err.code}: ${err.message}` : String(err.message || err));
+      phase = 'ready';
+      emit();
+      if (stopped) return;
+      timer = setTimeout(subscribe, RETRY_MS[Math.min(tries++, RETRY_MS.length - 1)]);
+    });
+  };
+  subscribe();
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    unsub?.();
+    if (failing.delete(ref.path)) setFailing(ref.path, null);
+  };
 }
 
 function update() {
@@ -197,24 +231,23 @@ function syncActive() {
 }
 
 function listen() {
-  const { fs } = fb;
-  rootUnsubs.push(fs.onSnapshot(userRef('meta', 'settings'), (snap) => {
+  rootUnsubs.push(watch(userRef('meta', 'settings'), (snap) => {
     wantActive = snap.data()?.activeSemester ?? null;
     got.settings = true;
     syncActive();
-  }, onError));
-  rootUnsubs.push(fs.onSnapshot(userColl('semesters'), (snap) => {
+  }));
+  rootUnsubs.push(watch(userColl('semesters'), (snap) => {
     const next = {};
     snap.forEach((d) => { next[d.id] = { ...(all.semesters[d.id] || blankSem()), semester: { ...d.data(), id: d.id } }; });
     all.semesters = next;
     got.semesters = true;
     syncActive();
-  }, onError));
-  rootUnsubs.push(fs.onSnapshot(userColl('events'), (snap) => {
+  }));
+  rootUnsubs.push(watch(userColl('events'), (snap) => {
     all.events = toMap(snap);
     got.events = true;
     update();
-  }, onError));
+  }));
 }
 
 function listenSemester(id) {
@@ -225,12 +258,12 @@ function listenSemester(id) {
   semPending = new Set(id ? SEM_COLLECTIONS : []);
   if (!id) return;
   for (const c of SEM_COLLECTIONS) {
-    semUnsubs.push(fb.fs.onSnapshot(userColl('semesters', id, c), (snap) => {
+    semUnsubs.push(watch(userColl('semesters', id, c), (snap) => {
       if (!all.semesters[id]) return;
       all.semesters[id] = { ...all.semesters[id], [c]: toMap(snap) };
       semPending.delete(c);
       update();
-    }, onError));
+    }));
   }
 }
 
