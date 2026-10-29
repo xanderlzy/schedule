@@ -1,7 +1,7 @@
 // Offline support: keeps the app shell, Firebase SDK and fonts available without a connection.
 // Your schedule itself is cached by Firestore (IndexedDB), never here.
 // Bump VERSION whenever you change files so devices pick up the new ones.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL = `schedule-shell-${VERSION}`;
 const RUNTIME = `schedule-runtime-${VERSION}`;
 
@@ -45,7 +45,10 @@ self.addEventListener('fetch', (event) => {
 async function networkFirst(req) {
   const cache = await caches.open(SHELL);
   try {
-    const res = await withTimeout(fetch(req), 4000);
+    // 'no-cache' revalidates with the server (cheap 304s) so updates aren't hidden by the HTTP cache
+    // (navigation requests can't take an init object, so rebuild them from the URL)
+    const fresh = req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache' }) : new Request(req, { cache: 'no-cache' });
+    const res = await withTimeout(fetch(fresh), 4000);
     if (res.ok) cache.put(req, res.clone());
     return res;
   } catch {

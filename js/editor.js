@@ -147,18 +147,18 @@ export function openTaskForm({ id, task, date } = {}) {
     h('label', { class: 'switch' }, h('input', { type: 'checkbox', name: 'done', checked: !!t.done }), h('span', {}, 'Done')),
     t.dueKind === 'week' && h('p', { class: 'muted small' }, 'The syllabus only gives the week for this deadline. Set the exact date and time once you know it.'),
     h('div', { class: 'btn-row' },
-      h('button', { class: 'btn btn-primary', type: 'submit' }, id ? 'Save' : 'Add deadline'),
+      h('button', { class: 'btn btn-primary', type: 'submit' }, id ? 'Done' : 'Add deadline'),
       id && h('button', {
         class: 'btn btn-ghost danger', type: 'button',
-        onclick: () => { save(store.remove('tasks', id), 'Deadline deleted'); sheet.close(); },
-      }, 'Delete')));
+        onclick: () => { deleted = true; save(store.remove('tasks', id), 'Deadline deleted'); sheet.close(); },
+      }, 'Delete')),
+    id && h('p', { class: 'muted small saved' }, 'Changes save automatically.'));
 
-  form.addEventListener('submit', (ev) => {
-    ev.preventDefault();
+  const read = () => {
     const f = new FormData(form);
     const due = `${f.get('date')}T${f.get('time')}`;
     const weight = f.get('weight') === '' ? null : Number(f.get('weight'));
-    const doc = {
+    return {
       title: f.get('title').trim(),
       moduleCode: f.get('moduleCode'),
       due,
@@ -166,11 +166,31 @@ export function openTaskForm({ id, task, date } = {}) {
       weight,
       done: f.get('done') === 'on',
     };
-    save(store.put('tasks', id || store.newId(), doc, { merge: false }), id ? 'Deadline saved' : 'Deadline added');
+  };
+
+  // Existing deadlines save as you edit, so closing the sheet never loses a change.
+  let deleted = false;
+  let lastSaved = id ? JSON.stringify(read()) : null;
+  const autosave = () => {
+    if (!id || deleted || !form.checkValidity()) return;
+    const doc = read();
+    const json = JSON.stringify(doc);
+    if (json === lastSaved) return;
+    lastSaved = json;
+    save(store.put('tasks', id, doc, { merge: false }));
+  };
+  const autosaveSoon = debounce(autosave, 500);
+  form.addEventListener('change', autosave);
+  form.addEventListener('input', autosaveSoon);
+
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    if (id) autosave();
+    else save(store.put('tasks', store.newId(), read(), { merge: false }), 'Deadline added');
     sheet.close();
   });
 
-  const sheet = openSheet({ title: id ? 'Edit deadline' : 'New deadline', content: form });
+  const sheet = openSheet({ title: id ? 'Edit deadline' : 'New deadline', content: form, onClose: autosave });
 }
 
 /** Day sheet used by the calendar on small screens. */

@@ -57,7 +57,7 @@ export async function save(promise, okMsg) {
 
 /* ---------- sheets (bottom sheet on phone, side drawer on desktop) ---------- */
 
-export function openSheet({ title, subtitle, content, footer }) {
+export function openSheet({ title, subtitle, content, footer, onClose }) {
   const prevFocus = document.activeElement;
   const body = h('div', { class: 'sheet-body' }, content);
   const closeBtn = h('button', { class: 'icon-btn', 'aria-label': 'Close', onclick: () => close() }, icon('close'));
@@ -107,6 +107,7 @@ export function openSheet({ title, subtitle, content, footer }) {
   function close() {
     if (closed) return;
     closed = true;
+    onClose?.();
     document.removeEventListener('keydown', onKey);
     layer.classList.remove('open');
     layer.classList.add('closing');

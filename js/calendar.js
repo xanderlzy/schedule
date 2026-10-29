@@ -49,7 +49,7 @@ function dayCell(dateISO, inMonth) {
   const pending = tasks.filter((t) => !t.done);
   const today = todayISO();
   const labels = [
-    ...pending.map((t) => h('span', { class: 'cal-label cal-label-task' }, t.title)),
+    ...tasks.map((t) => h('span', { class: `cal-label cal-label-task${t.done ? ' done' : ''}` }, t.title)),
     ...events.map((e) => h('span', { class: 'cal-label cal-label-event' }, e.title)),
     ...live.map((c) => h('span', { class: 'cal-label' }, c.moduleCode)),
   ];

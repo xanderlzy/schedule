@@ -5,7 +5,7 @@ import {
   iso, parseISO, addDays, weekStart, weekKind, nearestWeek, weekday, toMin, todayISO,
   classesOn, tasksOn, eventsOn, layoutLanes, nextUp, pendingTasks, countdown,
 } from './model.js';
-import { shadeOf, weekLabel, taskCheck, isOverdue, moduleName } from './views.js';
+import { shadeOf, weekLabel, taskCheck, isOverdue, dueText, moduleName } from './views.js';
 import { openItem, openEventForm, openAddMenu } from './editor.js';
 
 const DAY_START = 8 * 60;
@@ -196,8 +196,8 @@ function render() {
             class: `chip chip-task${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`,
             dataset: { shade: shadeOf(data, t.moduleCode) },
             onclick: () => openItem(t),
-            title: `${t.moduleCode} · ${t.title}`,
-          }, h('span', { class: 'dot' }), h('span', { class: 'chip-text' }, `${t.moduleCode} · ${t.title}`))),
+            title: [t.moduleCode, t.title, dueText(t)].filter(Boolean).join(' · '),
+          }, h('span', { class: 'dot' }), h('span', { class: 'chip-text' }, [t.dueKind === 'week' ? 'This week' : fmtTime(t.start), t.moduleCode, t.title].filter(Boolean).join(' · ')))),
       ];
       grid.append(h('div', { class: `tt-allday${d === activeDay ? ' active' : ''}`, dataset: { date: d } }, chips));
     }

@@ -654,3 +654,4 @@ mark { background: var(--surface-3); color: var(--text); font-weight: 600; borde
 .search-input::-webkit-search-cancel-button:hover { background: var(--text); }
 /* Keep the sheet a steady height while results change as you type */
 .search-results { min-height: min(52vh, 420px); align-content: start; }
+.cal-label-task.done { background: transparent; color: var(--text-3); text-decoration: line-through; border: 1px solid var(--line); }
