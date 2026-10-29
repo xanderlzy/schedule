@@ -26,6 +26,7 @@ if (mode === 'cloud' && !all.uid) all = blankAll();
 let view = derive();
 let phase = 'loading'; // 'loading' | 'signed-out' | 'ready'
 let user = null;
+let syncError = null; // last Firestore listener error, shown to the user
 let fb = null;
 const subs = new Set();
 
@@ -107,7 +108,7 @@ function emit() {
 }
 
 export const getState = () => view;
-export const status = () => ({ mode, phase, user, empty: !view.semester, semesterId: all.active });
+export const status = () => ({ mode, phase, user, empty: !view.semester, semesterId: all.active, error: syncError });
 
 export function subscribe(fn) {
   subs.add(fn);
@@ -178,6 +179,7 @@ const toMap = (snap) => {
 
 function onError(err) {
   console.error(err);
+  syncError = err.code ? `${err.code}: ${err.message}` : String(err.message || err);
   phase = 'ready';
   emit();
 }

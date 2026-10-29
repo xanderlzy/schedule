@@ -337,8 +337,11 @@ export function boot(render) {
 
   const main = document.getElementById('app');
   let shown = null;
+  let lastError = null;
   store.subscribe((data, st) => {
     renderGate(st);
+    if (st.error && st.error !== lastError) toast(`Sync problem — changes may not appear. ${st.error}`);
+    lastError = st.error;
     if (data.semester) {
       shown = 'data';
       render(data, st);

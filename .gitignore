@@ -6,3 +6,5 @@ docs/superpowers/
 
 .DS_Store
 node_modules/
+*.mov
+*.mp4
